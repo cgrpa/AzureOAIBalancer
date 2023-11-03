@@ -5,18 +5,21 @@ terraform {
       version = "3.75.0"
     }
 
-    azuread = {
-      source = "hashicorp/azuread"
-      version = "2.41.0"
-    }
-
   }
   backend "azurerm" {
+    resource_group_name = ""
   }
 }
 
 provider "azurerm" {
-  features {}
+  features {
+    cognitive_account {
+      purge_soft_delete_on_destroy = true
+    }
+    api_management {
+      purge_soft_delete_on_destroy = true
+    }
+  }
   skip_provider_registration = true
   subscription_id = var.subscriptionId
 }

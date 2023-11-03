@@ -1,0 +1,34 @@
+<policies>
+  <inbound>
+    <base />
+    <set-variable name="urlId" value="@(new Random(context.RequestId.GetHashCode()).Next(1, ${total_accounts}))" />
+    <choose>
+      %{ for account in accounts ~}
+      <when condition="@(context.Variables.GetValueOrDefault<int>("urlId") == ${account.index})">
+        <set-header name="api-key" exists-action="override">
+          <value>${account.primary_access_key}</value>
+        </set-header>
+        <set-backend-service base-url="${account.endpoint}/openai"/>
+      </when>
+      %{ endfor ~}
+      <otherwise>
+        <return-response>
+          <set-status code="500" reason="InternalServerError" />
+          <set-header name="Microsoft-Azure-Api-Management-Correlation-Id" exists-action="override">
+            <value>@(Guid.NewGuid().ToString())</value>
+          </set-header>
+          <set-body>A gateway-related error occurred while processing the request.</set-body>
+        </return-response>
+      </otherwise>
+    </choose>
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

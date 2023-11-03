@@ -1,11 +1,32 @@
+locals {
+  cognitive_accounts_keys = tolist(keys(var.cognitive_accounts))
+  cognitive_accounts_list = [
+    for idx, account_key in local.cognitive_accounts_keys : {
+      index             = idx + 1  
+      primary_access_key = azurerm_cognitive_account.cs[account_key].primary_access_key
+      endpoint          = trim(azurerm_cognitive_account.cs[account_key].endpoint, "/")  # ensure no trailing slash
+    }
+  ]
+}
+
+
+
 resource "azurerm_api_management" "this" {
-  name                = "${var.environment_no_dash}${var.name_prefix}${var.apim.name}"
+  name                = "${var.environment}${var.name_prefix}${var.apim.name}"
   location            = var.location
   resource_group_name = azurerm_resource_group.this.name
   publisher_name      = var.apim.publisher_name
   publisher_email     = var.apim.publisher_email
   sku_name            = var.apim.sku_name
+
+
   tags = var.tags
+
+
+    depends_on = [
+    azurerm_cognitive_account.cs
+  ]
+  
 }
 
 
@@ -25,55 +46,50 @@ resource "azurerm_api_management_api" "this" {
 }
 
 
+
+
+
 resource "azurerm_api_management_api_policy" "this" {
   resource_group_name = azurerm_resource_group.this.name
   api_management_name = azurerm_api_management.this.name
-  api_name          = azurerm_api_management_api.this.name
-  xml_content       = <<XML
-<policies>
-    <inbound>
-        <base />
-        <set-variable name="urlId" value="@(new Random(context.RequestId.GetHashCode()).Next(1, 4))" />
-        <choose>
-            <when condition="@(context.Variables.GetValueOrDefault<int>("urlId") == 1)">
-                <set-header name="api-key" exists-action="override">
-                    <value>${azurerm_cognitive_account.cs-swedencentral.primary_access_key}</value>
-                </set-header>
-                <set-backend-service base-url="${azurerm_cognitive_account.cs-swedencentral.endpoint}/openai"/>
-            </when>
-            <when condition="@(context.Variables.GetValueOrDefault<int>("urlId") == 2)">
-                <set-header name="api-key" exists-action="override">
-                    <value>${azurerm_cognitive_account.cs-switzerlandnorth.primary_access_key}</value>
-                </set-header>
-                <set-backend-service base-url="${azurerm_cognitive_account.cs-switzerlandnorth.endpoint}/openai" />
-            </when>
-            <when condition="@(context.Variables.GetValueOrDefault<int>("urlId") == 3)">
-                <set-header name="api-key" exists-action="override">
-                    <value>${azurerm_cognitive_account.cs-canadaeast.primary_access_key}</value>
-                </set-header>
-                <set-backend-service base-url="${azurerm_cognitive_account.cs-canadaeast.endpoint}/openai" />
-            </when>
-            <otherwise>
-                <return-response>
-                    <set-status code="500" reason="InternalServerError" />
-                    <set-header name="Microsoft-Azure-Api-Management-Correlation-Id" exists-action="override">
-                        <value>@{return Guid.NewGuid().ToString();}</value>
-                    </set-header>
-                    <set-body>A gateway-related error occurred while processing the request.</set-body>
-                </return-response>
-            </otherwise>
-        </choose>
-    </inbound>
-    <backend>
-        <base />
-    </backend>
-    <outbound>
-        <base />
-    </outbound>
-    <on-error>
-        <base />
-    </on-error>
-</policies>
-XML
+  api_name            = azurerm_api_management_api.this.name
+    xml_content = templatefile("${path.module}/templates/apim_policy_template.tmpl", {
+    accounts        = local.cognitive_accounts_list,
+    total_accounts  = length(local.cognitive_accounts_list)
+  })
+      depends_on = [
+    azurerm_cognitive_account.cs
+  ]
 }
 
+
+
+resource "azurerm_api_management_product" "this" {
+  product_id          = "azureoai"
+  api_management_name = azurerm_api_management.this.name
+  resource_group_name = azurerm_resource_group.this.name
+  display_name        = "Azure OpenAI"
+  description         = "A bundle of Azure OpenAI APIs"
+  approval_required   = false
+  subscriptions_limit = 1
+
+  subscription_required = true
+  published             = true
+}
+
+resource "azurerm_api_management_product_api" "this" {
+  api_name            = azurerm_api_management_api.this.name
+  product_id          = azurerm_api_management_product.this.product_id
+  api_management_name = azurerm_api_management.this.name
+  resource_group_name = azurerm_resource_group.this.name
+}
+
+resource "azurerm_api_management_subscription" "this" {
+  subscription_id     = "${var.environment_no_dash}-${var.name_prefix}-openai-subscription"
+  resource_group_name = azurerm_resource_group.this.name
+  api_management_name = azurerm_api_management.this.name
+  product_id          = azurerm_api_management_product.this.id
+  display_name        = "${var.environment_no_dash} ${var.name_prefix} OpenAI Subscription"
+  state               = "active"
+  allow_tracing       = true
+}

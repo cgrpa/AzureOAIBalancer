@@ -1,7 +1,7 @@
 variable "subscriptionId" {
   type        = string
   description = "Subscription ID to deploy to"
-  default     = "__SUBSCRIPTION_ID__"
+  default     = ""
 }
 
 variable "application" {
@@ -12,26 +12,26 @@ variable "application" {
 
 variable "location" {
   type        = string
-  description = "Azure region to deploy to"
+  description = "Azure region to deploy to (rg and apim)"
   default     = "uk south"
 }
 
 variable "location_nospace" {
   type        = string
-  description = "Azure region to deploy to"
+  description = "Azure region to deploy to (rg and apim)"
   default     = "uksouth"
 }
 
 variable "environment" {
   type        = string
-  description = "Environment (dev / uat / prd)"
-  default     = "__ENVIRONMENT__"
+  description = "Environment (dev- / uat- / prd-)"
+  default     = "dev-"
 }
 
 variable "environment_no_dash" {
   type        = string
-  description = "Environment (dev / uat / prd)"
-  default     = "__ENVIRONMENT_NO_DASH__"
+  description = "Environment (dev / uat / prd) no dash for storage accounts etc."
+  default     = "dev"
 }
 
 variable "name_prefix" {
@@ -54,9 +54,34 @@ variable "apim" {
     name                = "apim"
     publisher_name      = "John Doe"
     publisher_email     = "john.doe@contoso.com"
-    sku_name            = "Consumption_0"  # This is the SKU for the Consumption tier
+    sku_name            = "Consumption_0"  # Consumption SKU.
   }
 }
+
+
+variable "cognitive_accounts" {
+  description = "A map of cognitive account locations and their details."
+  type = map(object({
+    location           : string
+    custom_subdomain   : string
+  }))
+  default = {
+    "canadaeast" = {
+      location         = "CanadaEast"
+      custom_subdomain = "canadaeast"
+    },
+    "swedencentral" = {
+      location         = "SwedenCentral"
+      custom_subdomain = "swedencentral"
+    },
+    "switzerlandnorth" = {
+      location         = "SwitzerlandNorth"
+      custom_subdomain = "switzerlandnorth"
+    }
+  }
+}
+
+
 
 variable "openai_model" {
   type        = map
@@ -69,7 +94,7 @@ variable "openai_model" {
 
 variable "openai_tpm" {
   type        = number
-  description = "Tokens per minute (TPM) in thousands. 1 = 1,000"
+  description = "Tokens per minute (TPM) in thousands. 1 = 1,000" # This is per deployment.
   default     = 10
 }
 
@@ -77,7 +102,7 @@ variable "tags" {
   type        = map
   description = "Azure tags"
   default     = {
-    Environment = "__ENVIRONMENT_NO_DASH__"
+    Environment = "dev"
     Application = "cgrpa.oailb"
     Product     = "oailb"
     Criticality = "Tier 1"
