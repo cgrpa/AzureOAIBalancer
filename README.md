@@ -6,6 +6,14 @@ AzureOAIBalancer is a Terraform repository for automating the deployment of a lo
 
 Utilizing a random integer-based load balancer, it's advisable to implement a backoff strategy on the client side to handle RateLimitError. In the event of encountering a rate limit error, retrying the request should lead to a random redirection to a different deployment, bypassing the rate limit obstacle.
 
+Includes Swagger UI
+
+Screens
+
+![example1](https://github.com/cgrpa/AzureOAIBalancer/assets/95618126/226073c2-9d1b-473c-9abd-54ce3312cd37)
+
+![example2](https://github.com/cgrpa/AzureOAIBalancer/assets/95618126/85f23a67-d72f-4de7-9b75-5c446d828a95)
+
 ## Setup Instructions
 
 ### Prerequisites
